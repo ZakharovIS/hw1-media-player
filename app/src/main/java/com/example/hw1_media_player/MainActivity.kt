@@ -1,65 +1,73 @@
 package com.example.hw1_media_player
 
-import android.content.ContentResolver
-import android.media.MediaPlayer
-import android.net.Uri
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Bundle
+import android.os.IBinder
 import androidx.appcompat.app.AppCompatActivity
 import com.example.hw1_media_player.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var mService: MediaService
+    var mBound = false
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(p0: ComponentName?, p1: IBinder?) {
+            val binder = p1 as MediaService.LocalBinder
+            mService = binder.getService()
+            mBound = true
+        }
+
+        override fun onServiceDisconnected(p0: ComponentName?) {
+            mBound = false
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        var numberSongPlayed = 0
 
-        var mediaPlayer = MediaPlayer.create(this, R.raw.bitter_pill)
-        var playList = makePlaylist()
+        if (!mBound) {
+            val intent = Intent(this, MediaService::class.java)
+            startService(intent)
+            bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        }
 
         binding.imageButtonPlayPause.setOnClickListener {
-
-            mediaPlayer.start()
-
+            if (mService.isPlaying) {
+                mService.pauseSong()
+            } else {
+                mService.startSong()
+            }
+            refreshButtonPlayIcon()
         }
 
         binding.imageButtonNext.setOnClickListener {
-
-            numberSongPlayed = (numberSongPlayed + 1) % 3
-            mediaPlayer.reset()
-            mediaPlayer.setDataSource(this, playList[numberSongPlayed])
-            mediaPlayer.prepare()
-            mediaPlayer.start()
+            mService.nextSong()
+            refreshButtonPlayIcon()
         }
 
         binding.imageButtonPrevious.setOnClickListener {
-
-            numberSongPlayed = if (numberSongPlayed == 0) playList.size - 1 else numberSongPlayed - 1
-            mediaPlayer.reset()
-            mediaPlayer.setDataSource(this, playList[numberSongPlayed])
-            mediaPlayer.prepare()
-            mediaPlayer.start()
+            mService.previousSong()
+            refreshButtonPlayIcon()
         }
 
     }
 
-
-    fun makePlaylist(): List<Uri> {
-        return mutableListOf<Uri>(
-            uriFromRaw(R.raw.bitter_pill),
-            uriFromRaw(R.raw.save_me_now),
-            uriFromRaw(R.raw.cant_break_me_down)
-        )
+    override fun onDestroy() {
+        super.onDestroy()
+        unbindService(serviceConnection)
+        mBound = false
     }
-    fun uriFromRaw(resource: Int): Uri {
-        return Uri.Builder()
-            .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
-            .authority(packageName)
-            .path(resource.toString())
-            .build()
+
+    fun refreshButtonPlayIcon() {
+        if (mService.isPlaying) binding.imageButtonPlayPause.setImageResource(R.drawable.pause_circle)
+        else binding.imageButtonPlayPause.setImageResource(R.drawable.play_circle)
     }
 
 }
