@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         mBound = false
     }
 
-    fun refreshButtonPlayIcon() {
+    private fun refreshButtonPlayIcon() {
         if (mService.isPlaying) binding.imageButtonPlayPause.setImageResource(R.drawable.pause_circle)
         else binding.imageButtonPlayPause.setImageResource(R.drawable.play_circle)
     }
